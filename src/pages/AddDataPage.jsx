@@ -5,7 +5,6 @@ import {
   Box,
   Typography,
   Button,
-
   Paper,
   Alert,
   Table,
@@ -24,6 +23,7 @@ import {
   Save as SaveIcon,
   Visibility as PreviewIcon,
 } from '@mui/icons-material';
+import useFlashcardStore from '../stores/useFlashcardStore';
 
 // Otomatik veri temizleme fonksiyonları
 const cleanSentenceData = (sentence, word) => {
@@ -152,6 +152,7 @@ const optimizeWordMatching = (sentence, word) => {
 };
 
 const AddDataPage = () => {
+  const { addPracticeCards, addGameCards } = useFlashcardStore();
   const [csvData, setCsvData] = useState([]);
   const [fileName, setFileName] = useState('');
   const [isUploaded, setIsUploaded] = useState(false);
@@ -268,13 +269,9 @@ const AddDataPage = () => {
     fileInputRef.current?.click();
   };
 
-  // Verileri kaydetme (Practice veya Game verisi)
-  const handleSaveData = () => {
-    console.log('💾 Temizlenmiş veriler kaydediliyor...', `Tip: ${dataType}`);
-
-    // Veri tipine göre farklı storage key'leri kullan
-    const storageKey = dataType === 'game' ? 'gameFlashcardData' : 'flashcardData';
-    const existingData = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  // Verileri kaydetme (Practice veya Game verisi) - Firebase ile
+  const handleSaveData = async () => {
+    console.log('💾 Temizlenmiş veriler Firebase\'e kaydediliyor...', `Tip: ${dataType}`);
 
     let finalCleanedData;
 
@@ -288,6 +285,9 @@ const AddDataPage = () => {
         word_mean: item.translation || item.word_mean, // word_mean field
         repeatCount: 0
       }));
+
+      // Firebase'e game kartları olarak ekle
+      await addGameCards(finalCleanedData);
     } else {
       // Practice verisi için eski format
       finalCleanedData = csvData.map(item => ({
@@ -298,20 +298,18 @@ const AddDataPage = () => {
         translationWithUnderline: item.translation.trim(),
         repeatCount: 0 // Reset repeat count
       }));
+
+      // Firebase'e practice kartları olarak ekle
+      await addPracticeCards(finalCleanedData);
     }
 
-    const updatedData = [...existingData, ...finalCleanedData];
-    localStorage.setItem(storageKey, JSON.stringify(updatedData));
-
-    console.log('✅ Kaydedilen veri:', {
+    console.log('✅ Firebase\'e kaydedilen veri:', {
       tip: dataType,
-      eskiVeriSayısı: existingData.length,
-      yeniVeriSayısı: finalCleanedData.length,
-      toplamVeri: updatedData.length
+      yeniVeriSayısı: finalCleanedData.length
     });
 
     const dataTypeName = dataType === 'game' ? 'Game' : 'Practice';
-    setSnackbarMessage(`✨ ${csvData.length} adet ${dataTypeName} verisi başarıyla eklendi!`);
+    setSnackbarMessage(`✨ ${csvData.length} adet ${dataTypeName} verisi başarıyla Firebase'e eklendi!`);
     setSnackbarOpen(true);
 
     // Form'u temizle

@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Box, Typography, Paper, Fade, LinearProgress } from '@mui/material';
+import useFlashcardStore from '../stores/useFlashcardStore';
 
 const GamePage = () => {
+  const { gameCards } = useFlashcardStore();
   const [flashcardData, setFlashcardData] = useState([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -30,25 +32,14 @@ const GamePage = () => {
     },
   ], []);
 
-  // Component mount olduğunda localStorage'dan game verisini yükle
+  // Firebase'den game kartlarını yükle
   useEffect(() => {
-    const savedGameData = localStorage.getItem('gameFlashcardData');
-    if (savedGameData) {
-      try {
-        const parsedData = JSON.parse(savedGameData);
-        if (parsedData.length > 0) {
-          setFlashcardData(parsedData);
-        } else {
-          setFlashcardData(defaultData);
-        }
-      } catch (error) {
-        console.error('localStorage game veri okuma hatası:', error);
-        setFlashcardData(defaultData);
-      }
+    if (gameCards && gameCards.length > 0) {
+      setFlashcardData(gameCards);
     } else {
       setFlashcardData(defaultData);
     }
-  }, [defaultData]);
+  }, [gameCards, defaultData]);
 
   // Yeni klavye kısayolları
   const handleKeyPress = useCallback((event) => {

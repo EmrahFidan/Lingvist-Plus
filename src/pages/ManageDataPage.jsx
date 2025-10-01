@@ -23,8 +23,10 @@ import {
   Star as StarIcon,
   StarBorder as StarBorderIcon,
 } from '@mui/icons-material';
+import useFlashcardStore from '../stores/useFlashcardStore';
 
 const ManageDataPage = () => {
+  const { practiceCards, gameCards, deletePracticeCard, deleteGameCard } = useFlashcardStore();
   const [flashcards, setFlashcards] = useState([]);
   const [gameFlashcards, setGameFlashcards] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -34,29 +36,11 @@ const ManageDataPage = () => {
   const [tabValue, setTabValue] = useState(0); // 0: Practice, 1: Game
   const [progressFilter, setProgressFilter] = useState('all'); // all, 0, 1, 2, 3, 4, 5
 
+  // Firebase'den veri yükle
   useEffect(() => {
-    // Practice data yükle
-    const savedData = localStorage.getItem('flashcardData');
-    if (savedData) {
-      try {
-        setFlashcards(JSON.parse(savedData));
-      } catch (error) {
-        console.error('localStorage practice veri okuma hatası:', error);
-        setFlashcards([]);
-      }
-    }
-
-    // Game data yükle
-    const savedGameData = localStorage.getItem('gameFlashcardData');
-    if (savedGameData) {
-      try {
-        setGameFlashcards(JSON.parse(savedGameData));
-      } catch (error) {
-        console.error('localStorage game veri okuma hatası:', error);
-        setGameFlashcards([]);
-      }
-    }
-  }, []);
+    setFlashcards(practiceCards || []);
+    setGameFlashcards(gameCards || []);
+  }, [practiceCards, gameCards]);
 
   // Aktif veri setini belirle
   const currentData = tabValue === 0 ? flashcards : gameFlashcards;
@@ -90,19 +74,30 @@ const ManageDataPage = () => {
     setSelected(newSelected);
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     const dataTypeName = tabValue === 0 ? 'Practice' : 'Game';
     const isConfirmed = window.confirm(`${selected.length} adet ${dataTypeName} verisini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`);
     if (isConfirmed) {
-      const remaining = currentData.filter((_, index) => !selected.includes(index));
+      // Silinecek kartların ID'lerini al
+      const cardsToDelete = selected.map(index => currentData[index]);
 
+      // Firebase'den sil
+      for (const card of cardsToDelete) {
+        if (tabValue === 0) {
+          await deletePracticeCard(card.id);
+        } else {
+          await deleteGameCard(card.id);
+        }
+      }
+
+      // Local state'i güncelle
+      const remaining = currentData.filter((_, index) => !selected.includes(index));
       if (tabValue === 0) {
         setFlashcards(remaining);
       } else {
         setGameFlashcards(remaining);
       }
 
-      localStorage.setItem(currentStorageKey, JSON.stringify(remaining));
       setSelected([]);
     }
   };

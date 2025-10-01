@@ -1,7 +1,9 @@
 import { Box, Typography, Slider, Button, Paper, Snackbar, Alert, Grid } from '@mui/material';
+import { Logout as LogoutIcon } from '@mui/icons-material';
 import useSettingsStore from '../stores/useSettingsStore';
 import { themes } from '../theme/themes';
 import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 
 const SettingsPage = () => {
   const {
@@ -11,9 +13,15 @@ const SettingsPage = () => {
     setTheme
   } = useSettingsStore();
 
+  const { logout, user } = useAuth();
+
   const [sliderValue, setSliderValue] = useState(targetGoal);
   const [maxCards, setMaxCards] = useState(200);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+  };
 
   const handleSliderChange = (event, newValue) => {
     setSliderValue(newValue);
@@ -37,9 +45,32 @@ const SettingsPage = () => {
 
   return (
     <Box sx={{ p: 4, maxWidth: 600, mx: 'auto' }}>
-      <Typography variant="h3" gutterBottom sx={{ color: 'text.primary', mb: 8, textAlign: 'center', fontWeight: 'bold' }}>
+      <Typography variant="h3" gutterBottom sx={{ color: 'text.primary', mb: 4, textAlign: 'center', fontWeight: 'bold' }}>
         Ayarlar
       </Typography>
+
+      {/* Kullanıcı Bilgisi ve Çıkış */}
+      <Paper sx={{ p: 3, backgroundColor: 'background.paper', borderRadius: 3, mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              Hoş geldin,
+            </Typography>
+            <Typography variant="h6" sx={{ color: 'text.primary' }}>
+              {user?.displayName || user?.email}
+            </Typography>
+          </Box>
+          <Button
+            onClick={handleLogout}
+            variant="outlined"
+            color="error"
+            startIcon={<LogoutIcon />}
+          >
+            Çıkış Yap
+          </Button>
+        </Box>
+      </Paper>
+
       <Paper sx={{ p: 4, backgroundColor: 'background.paper', borderRadius: 3 }}>
         <Typography variant="h6" sx={{ color: 'text.secondary', mb: 3, textAlign: 'center' }}>
           Günlük Kart Hedefi

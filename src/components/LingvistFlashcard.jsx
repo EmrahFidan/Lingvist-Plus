@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Levenshtein from 'fast-levenshtein';
 import CompletionScreen from './CompletionScreen';
 import useSettingsStore from '../stores/useSettingsStore';
+import useFlashcardStore from '../stores/useFlashcardStore';
 import { FSRSEngine, DataMigrationHelper } from '../utils/fsrs';
 import { WeightedSelectionEngine, SessionProgressManager } from '../utils/weightedSelection';
 import CSVHandler from '../utils/csvHandler';
@@ -115,7 +116,15 @@ const LingvistFlashcard = () => {
     currentProgress,
     incrementProgress,
     resetProgress,
+    checkDailyReset,
   } = useSettingsStore();
+
+  const { practiceCards, updatePracticeCard } = useFlashcardStore();
+
+  // Component mount olduğunda günlük sıfırlamayı kontrol et
+  useEffect(() => {
+    checkDailyReset();
+  }, [checkDailyReset]);
 
   const handleNavigateToSettings = () => {
     navigate('/settings');
@@ -142,11 +151,6 @@ const LingvistFlashcard = () => {
   const inputRef = useRef(null);
   const textRef = useRef(null);
   const [dynamicFontSize, setDynamicFontSize] = useState({ xs: '1.8rem', sm: '2rem', md: '2.2rem' });
-
-  // Bileşen yüklendiğinde ilerlemeyi sıfırla
-  useEffect(() => {
-    resetProgress();
-  }, [resetProgress]);
 
   // Text overflow kontrolü ve dinamik font size ayarlama
   useEffect(() => {
@@ -268,34 +272,22 @@ const LingvistFlashcard = () => {
     },
   ], [fsrsEngine]);
 
-  // Component mount olduğunda localStorage'dan veri yükle ve weighted format'a migrate et
+  // Firebase'den veri yükle
   useEffect(() => {
-    const savedData = localStorage.getItem('flashcardData');
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        if (parsedData.length > 0) {
-          // Eski veriyi yeni format'a migrate et
-          const migratedData = parsedData.map((card, index) => ({
-            ...card,
-            id: card.id || `${card.missingWord}_${index}`,
-            masteryLevel: card.masteryLevel || 0,
-            lastPracticed: card.lastPracticed || null,
-            fsrs: card.fsrs || fsrsEngine.createNewCard()
-          }));
-          setFlashcardData(migratedData);
-          localStorage.setItem('flashcardData', JSON.stringify(migratedData));
-        } else {
-          setFlashcardData(defaultData);
-        }
-      } catch (error) {
-        console.error('localStorage veri okuma hatası:', error);
-        setFlashcardData(defaultData);
-      }
+    if (practiceCards && practiceCards.length > 0) {
+      // Firebase'den veri varsa migrate et
+      const migratedData = practiceCards.map((card, index) => ({
+        ...card,
+        id: card.id || `${card.missingWord}_${index}`,
+        masteryLevel: card.masteryLevel || 0,
+        lastPracticed: card.lastPracticed || null,
+        fsrs: card.fsrs || fsrsEngine.createNewCard()
+      }));
+      setFlashcardData(migratedData);
     } else {
       setFlashcardData(defaultData);
     }
-  }, [defaultData, fsrsEngine]);
+  }, [practiceCards, defaultData, fsrsEngine]);
 
   // İlk kartı ve session progress'i seç
   useEffect(() => {
@@ -430,23 +422,22 @@ const LingvistFlashcard = () => {
       card.id === currentCard.id ? updatedCard : card
     );
 
-    // Her cevap (doğru/yanlış) global progress'i +1 artır (kart sayacı)
-    incrementProgress();
+    // Sadece doğru cevaplarda global progress'i +1 artır (günlük hedef)
+    if (isCorrectAnswer) {
+      incrementProgress();
+    }
 
     // Session progress 5'e ulaştıysa kelime mastered oldu (log)
     if (isMastered && !currentCard.sessionCompleted) {
       console.log(`🎉 MASTERED: ${updatedCard.missingWord} (session progress reached 5)`);
     }
 
-    console.log(`💾 SAVING TO LOCALSTORAGE - Updated card: ${updatedCard.missingWord} (session: ${updatedCard.sessionProgress}, mastered: ${isMastered})`);
+    console.log(`💾 SAVING TO FIREBASE - Updated card: ${updatedCard.missingWord} (session: ${updatedCard.sessionProgress}, mastered: ${isMastered})`);
 
     setFlashcardData(updatedData);
-    localStorage.setItem('flashcardData', JSON.stringify(updatedData));
 
-    // localStorage'a kaydedildikten sonra kontrol et
-    const savedData = JSON.parse(localStorage.getItem('flashcardData'));
-    const savedCard = savedData.find(c => c.id === updatedCard.id);
-    console.log(`🔍 VERIFICATION - Saved card: ${savedCard?.missingWord} (session: ${savedCard?.sessionProgress})`);
+    // Firebase'e kaydet
+    updatePracticeCard(updatedCard.id, updatedCard);
 
     // State'leri temizle
     setUserInput('');
@@ -570,10 +561,13 @@ const LingvistFlashcard = () => {
       // FSRS format'a migrate et
       const migratedCards = DataMigrationHelper.migrateOldData(importedCards, fsrsEngine);
 
-      // Mevcut verilerle birleştir
+      // Mevcut verilerle birleştir ve Firebase'e kaydet
       const combinedData = [...flashcardData, ...migratedCards];
       setFlashcardData(combinedData);
-      localStorage.setItem('flashcardData', JSON.stringify(combinedData));
+
+      // Yeni kartları Firebase'e ekle
+      const { addPracticeCards } = useFlashcardStore.getState();
+      await addPracticeCards(migratedCards);
 
       setAlertInfo({
         open: true,
@@ -676,7 +670,7 @@ const LingvistFlashcard = () => {
       <CompletionScreen
         targetGoal={targetGoal}
         allCardsMastered={allCardsMastered}
-        onReset={() => {
+        onReset={async () => {
           resetProgress();
           // Reset all mastery levels to start over
           const resetData = flashcardData.map(card => ({
@@ -686,7 +680,12 @@ const LingvistFlashcard = () => {
             sessionCompleted: false
           }));
           setFlashcardData(resetData);
-          localStorage.setItem('flashcardData', JSON.stringify(resetData));
+
+          // Tüm kartları Firebase'de güncelle
+          for (const card of resetData) {
+            await updatePracticeCard(card.id, card);
+          }
+
           setCurrentCard(null);
         }}
         onNavigateToSettings={handleNavigateToSettings}

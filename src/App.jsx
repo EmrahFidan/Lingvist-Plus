@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import LingvistFlashcard from './components/LingvistFlashcard';
 import MinimalSideNav from './components/MinimalSideNav';
@@ -7,16 +7,52 @@ import AddDataPage from './pages/AddDataPage';
 import ManageDataPage from './pages/ManageDataPage';
 import SettingsPage from './pages/SettingsPage';
 import GamePage from './pages/GamePage';
-import { Box, IconButton } from '@mui/material';
+import AuthPage from './components/Auth/AuthPage';
+import { Box, IconButton, CircularProgress } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
+import { useAuth } from './contexts/AuthContext';
+import useSettingsStore from './stores/useSettingsStore';
 
 function App() {
   const [sideNavOpen, setSideNavOpen] = useState(window.innerWidth > 768);
+  const { user, loading } = useAuth();
+  const checkDailyReset = useSettingsStore((state) => state.checkDailyReset);
+
+  // Uygulama başladığında günlük sıfırlamayı kontrol et
+  useEffect(() => {
+    if (user) {
+      checkDailyReset();
+    }
+  }, [user, checkDailyReset]);
 
   const handleSideNavToggle = () => {
     setSideNavOpen(!sideNavOpen);
   };
 
+  // Loading durumunda spinner göster
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh'
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Kullanıcı giriş yapmamışsa auth sayfasına yönlendir
+  if (!user) {
+    return (
+      <Layout>
+        <AuthPage />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -24,7 +60,7 @@ function App() {
         open={sideNavOpen}
         onToggle={handleSideNavToggle}
       />
-      
+
       {/* Menu Toggle Button - Always Visible */}
       {!sideNavOpen && (
         <IconButton
@@ -45,7 +81,7 @@ function App() {
           <MenuIcon />
         </IconButton>
       )}
-      
+
       {/* Ana İçerik */}
       <Box
         component="main"
