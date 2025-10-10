@@ -219,6 +219,7 @@ const AddDataPage = () => {
 
               // 5. ÇEVİRİ TEMİZLEME
               const cleanedTranslation = (row.word_mean || '').trim();
+              const cleanedSentenceTranslation = (row.sentence_translation || '').trim();
 
               console.log(`✅ Satır ${index + 1} işlendi:`, {
                 original: originalSentence,
@@ -233,6 +234,7 @@ const AddDataPage = () => {
                 missingWord: cleanedWord,
                 translation: cleanedTranslation,
                 translationWithUnderline: cleanedTranslation,
+                sentenceTranslation: cleanedSentenceTranslation,
                 originalSentence: originalSentence, // Debug için
                 originalWord: originalWord // Debug için
               };
@@ -296,6 +298,7 @@ const AddDataPage = () => {
         missingWord: item.missingWord, // Zaten normalize edilmiş
         translation: item.translation.trim(),
         translationWithUnderline: item.translation.trim(),
+        sentenceTranslation: item.sentenceTranslation ? item.sentenceTranslation.trim() : '',
         repeatCount: 0 // Reset repeat count
       }));
 
@@ -390,10 +393,10 @@ const AddDataPage = () => {
           🤖 Otomatik Temizleme Sistemi - CSV Format:
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', fontFamily: 'monospace', mb: 2 }}>
-          word,sentence,word_mean
+          word,sentence,word_mean,sentence_translation
         </Typography>
         <Typography variant="body2" sx={{ color: 'text.secondary', fontFamily: 'monospace', mb: 2 }}>
-          "adult","We're adults and we make decisions.","Yetişkiniz ve kararlar veririz."
+          "adult","We're adults and we make decisions.","Yetişkin","Biz yetişkiniz ve kararlar veririz."
         </Typography>
         <Box sx={{ mt: 2, p: 2, backgroundColor: 'rgba(255, 255, 255, 0.05)', borderRadius: 1 }}>
           <Typography variant="caption" sx={{ color: 'secondary.main' }}>
@@ -502,21 +505,24 @@ const AddDataPage = () => {
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ color: 'text.primary', fontWeight: 'bold' }}>
+                  <TableCell sx={{ color: 'text.primary', fontWeight: 'bold', minWidth: 200 }}>
                     Sentence
                   </TableCell>
-                  <TableCell sx={{ color: 'text.primary', fontWeight: 'bold' }}>
+                  <TableCell sx={{ color: 'text.primary', fontWeight: 'bold', minWidth: 100 }}>
                     Word
                   </TableCell>
-                  <TableCell sx={{ color: 'text.primary', fontWeight: 'bold' }}>
+                  <TableCell sx={{ color: 'text.primary', fontWeight: 'bold', minWidth: 120 }}>
                     Word Mean
+                  </TableCell>
+                  <TableCell sx={{ color: 'text.primary', fontWeight: 'bold', minWidth: 200 }}>
+                    Sentence Translation
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {originalPreviewData.map((row, index) => (
                   <TableRow key={index}>
-                    <TableCell sx={{ color: 'text.secondary' }}>
+                    <TableCell sx={{ color: 'text.secondary', fontSize: '0.9rem' }}>
                       {row.sentence}
                     </TableCell>
                     <TableCell sx={{ color: 'primary.main', fontWeight: 'bold' }}>
@@ -525,11 +531,14 @@ const AddDataPage = () => {
                     <TableCell sx={{ color: 'text.secondary' }}>
                       {row.word_mean}
                     </TableCell>
+                    <TableCell sx={{ color: 'text.disabled', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                      {row.sentence_translation || '-'}
+                    </TableCell>
                   </TableRow>
                 ))}
                 {csvData.length > 5 && (
                   <TableRow>
-                    <TableCell colSpan={3} sx={{ textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
+                    <TableCell colSpan={4} sx={{ textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
                       ... ve {csvData.length - 5} satır daha
                     </TableCell>
                   </TableRow>

@@ -17,6 +17,7 @@ import {
   TablePagination,
   Tabs,
   Tab,
+  CircularProgress,
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
@@ -26,7 +27,14 @@ import {
 import useFlashcardStore from '../stores/useFlashcardStore';
 
 const ManageDataPage = () => {
-  const { practiceCards, gameCards, deletePracticeCard, deleteGameCard } = useFlashcardStore();
+  const {
+    practiceCards,
+    gameCards,
+    deletePracticeCard,
+    deleteGameCard,
+    deletePracticeCardsBatch,
+    deleteGameCardsBatch
+  } = useFlashcardStore();
   const [flashcards, setFlashcards] = useState([]);
   const [gameFlashcards, setGameFlashcards] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -35,6 +43,7 @@ const ManageDataPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [tabValue, setTabValue] = useState(0); // 0: Practice, 1: Game
   const [progressFilter, setProgressFilter] = useState('all'); // all, 0, 1, 2, 3, 4, 5
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Firebase'den veri yükle
   useEffect(() => {
@@ -78,27 +87,34 @@ const ManageDataPage = () => {
     const dataTypeName = tabValue === 0 ? 'Practice' : 'Game';
     const isConfirmed = window.confirm(`${selected.length} adet ${dataTypeName} verisini silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`);
     if (isConfirmed) {
-      // Silinecek kartların ID'lerini al
-      const cardsToDelete = selected.map(index => currentData[index]);
+      setIsDeleting(true);
+      try {
+        // Silinecek kartların ID'lerini al
+        const cardsToDelete = selected.map(index => currentData[index]);
+        const idsToDelete = cardsToDelete.map(card => card.id);
 
-      // Firebase'den sil
-      for (const card of cardsToDelete) {
+        // Batch delete ile Firebase'den sil (çok daha hızlı!)
         if (tabValue === 0) {
-          await deletePracticeCard(card.id);
+          await deletePracticeCardsBatch(idsToDelete);
         } else {
-          await deleteGameCard(card.id);
+          await deleteGameCardsBatch(idsToDelete);
         }
-      }
 
-      // Local state'i güncelle
-      const remaining = currentData.filter((_, index) => !selected.includes(index));
-      if (tabValue === 0) {
-        setFlashcards(remaining);
-      } else {
-        setGameFlashcards(remaining);
-      }
+        // Local state'i güncelle
+        const remaining = currentData.filter((_, index) => !selected.includes(index));
+        if (tabValue === 0) {
+          setFlashcards(remaining);
+        } else {
+          setGameFlashcards(remaining);
+        }
 
-      setSelected([]);
+        setSelected([]);
+      } catch (error) {
+        console.error('Silme hatası:', error);
+        alert('Veri silinirken bir hata oluştu. Lütfen tekrar deneyin.');
+      } finally {
+        setIsDeleting(false);
+      }
     }
   };
 
@@ -282,10 +298,18 @@ const ManageDataPage = () => {
               <Button
                 variant="contained"
                 color="error"
-                startIcon={<DeleteIcon />}
+                startIcon={isDeleting ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />}
                 onClick={handleDeleteSelected}
+                disabled={isDeleting}
+                sx={{
+                  minWidth: 150,
+                  '&.Mui-disabled': {
+                    backgroundColor: 'rgba(244, 67, 54, 0.5)',
+                    color: 'rgba(255, 255, 255, 0.7)',
+                  }
+                }}
               >
-                {selected.length} Öğeyi Sil
+                {isDeleting ? 'Siliniyor...' : `${selected.length} Öğeyi Sil`}
               </Button>
             </Tooltip>
           </Box>
@@ -301,8 +325,13 @@ const ManageDataPage = () => {
                 {tabValue === 0 ? 'Aranan Kelime' : 'Kelime'}
               </TableCell>
               <TableCell sx={{ color: 'text.primary', fontWeight: 'bold' }}>
-                {tabValue === 0 ? 'Türkçe Çeviri' : 'Kelime Anlamı'}
+                {tabValue === 0 ? 'Kelime Anlamı' : 'Kelime Anlamı'}
               </TableCell>
+              {tabValue === 0 && (
+                <TableCell sx={{ color: 'text.primary', fontWeight: 'bold' }}>
+                  Cümle Çevirisi
+                </TableCell>
+              )}
               {tabValue === 0 && (
                 <TableCell sx={{ color: 'text.primary', fontWeight: 'bold', textAlign: 'center' }}>
                   Progress
@@ -342,7 +371,7 @@ const ManageDataPage = () => {
                   selected={isItemSelected}
                   sx={{ cursor: 'pointer' }}
                 >
-                  <TableCell sx={{ color: 'text.secondary' }}>
+                  <TableCell sx={{ color: 'text.secondary', fontSize: '0.9rem' }}>
                     {card.sentence}
                   </TableCell>
                   <TableCell
@@ -361,6 +390,11 @@ const ManageDataPage = () => {
                   <TableCell sx={{ color: 'text.secondary' }}>
                     {tabValue === 0 ? card.translation : card.word_mean}
                   </TableCell>
+                  {tabValue === 0 && (
+                    <TableCell sx={{ color: 'text.disabled', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                      {card.sentenceTranslation || '-'}
+                    </TableCell>
+                  )}
                   {tabValue === 0 && (
                     <TableCell sx={{ textAlign: 'center', py: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
@@ -411,14 +445,14 @@ const ManageDataPage = () => {
             })}
             {filteredFlashcards.length === 0 && flashcards.length > 0 && (
               <TableRow>
-                <TableCell colSpan={tabValue === 0 ? 5 : 4} sx={{ textAlign: 'center', color: 'text.secondary', fontStyle: 'italic', p: 4 }}>
+                <TableCell colSpan={tabValue === 0 ? 6 : 4} sx={{ textAlign: 'center', color: 'text.secondary', fontStyle: 'italic', p: 4 }}>
                   Arama kriterinize uygun veri bulunamadı. Farklı terimlerle arama yapın.
                 </TableCell>
               </TableRow>
             )}
             {flashcards.length === 0 && (
               <TableRow>
-                <TableCell colSpan={tabValue === 0 ? 5 : 4} sx={{ textAlign: 'center', color: 'text.secondary', fontStyle: 'italic', p: 4 }}>
+                <TableCell colSpan={tabValue === 0 ? 6 : 4} sx={{ textAlign: 'center', color: 'text.secondary', fontStyle: 'italic', p: 4 }}>
                   Görüntülenecek veri bulunamadı. Lütfen 'Veri Ekleme' sayfasından CSV dosyası yükleyin.
                 </TableCell>
               </TableRow>

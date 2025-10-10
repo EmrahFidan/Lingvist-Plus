@@ -104,6 +104,24 @@ const useFlashcardStore = create((set, get) => ({
     await get().syncToFirebase();
   },
 
+  // Batch delete - Practice kartları (performanslı)
+  deletePracticeCardsBatch: async (ids) => {
+    const { practiceCards } = get();
+    const idsSet = new Set(ids);
+    const updatedCards = practiceCards.filter(card => !idsSet.has(card.id));
+    set({ practiceCards: updatedCards });
+    await get().syncToFirebase();
+  },
+
+  // Batch delete - Game kartları (performanslı)
+  deleteGameCardsBatch: async (ids) => {
+    const { gameCards } = get();
+    const idsSet = new Set(ids);
+    const updatedCards = gameCards.filter(card => !idsSet.has(card.id));
+    set({ gameCards: updatedCards });
+    await get().syncToFirebase();
+  },
+
   // Tüm kartları temizle
   clearAllCards: async () => {
     set({ practiceCards: [], gameCards: [] });

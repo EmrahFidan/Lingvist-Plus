@@ -237,6 +237,7 @@ const LingvistFlashcard = () => {
       missingWord: "friends",
       translation: "Arkadaşlar hayatta çok önemlidir.",
       translationWithUnderline: "<u>Arkadaşlar</u> hayatta çok önemlidir.",
+      sentenceTranslation: "Arkadaşlar hayatta çok önemlidir.",
       repeatCount: 0, // Legacy
       masteryLevel: 0, // 0-5 progress tracking
       sessionProgress: 0,
@@ -246,10 +247,11 @@ const LingvistFlashcard = () => {
     },
     {
       id: 'exam_002',
-      sentence: "She is studying for her",
+      sentence: "She is studying for her exam",
       missingWord: "exam",
       translation: "O sınavı için çalışıyor.",
       translationWithUnderline: "O <u>sınavı</u> için çalışıyor.",
+      sentenceTranslation: "O sınavı için çalışıyor.",
       repeatCount: 0,
       masteryLevel: 0,
       sessionProgress: 0,
@@ -259,10 +261,11 @@ const LingvistFlashcard = () => {
     },
     {
       id: 'groceries_003',
-      sentence: "We need to buy some",
+      sentence: "We need to buy some groceries",
       missingWord: "groceries",
       translation: "Biraz market alışverişi yapmamız gerekiyor.",
       translationWithUnderline: "Biraz <u>market alışverişi</u> yapmamız gerekiyor.",
+      sentenceTranslation: "Biraz market alışverişi yapmamız gerekiyor.",
       repeatCount: 0,
       masteryLevel: 0,
       sessionProgress: 0,
@@ -750,7 +753,7 @@ const LingvistFlashcard = () => {
           </Box>
         </Box>
 
-        {/* İngilizce Cümle */}
+        {/* İngilizce Cümle ve Türkçe Çeviri */}
         <Box
           sx={{
             textAlign: 'center',
@@ -761,6 +764,7 @@ const LingvistFlashcard = () => {
             width: '100%',
             boxSizing: 'border-box',
             display: 'flex',
+            flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
             minHeight: 100,
@@ -807,7 +811,7 @@ const LingvistFlashcard = () => {
                               ? '#29b6f6'
                               : 'primary.main'
                       : 'primary.main',
-                    fontWeight: 500,
+                    fontWeight: 700,
                     fontSize: '1em',
                     borderBottom: '2px solid rgba(255, 255, 255, 0.7)',
                     paddingBottom: '2px',
@@ -840,12 +844,34 @@ const LingvistFlashcard = () => {
             </Box>
             {cardData.sentenceEnd}
           </Typography>
+
+          {/* Türkçe Cümle Çevirisi - İngilizce cümlenin altında */}
+          {cardData.sentenceTranslation && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#4ade80',
+                textAlign: 'center',
+                fontSize: { xs: '0.95rem', sm: '1rem', md: '1.05rem' },
+                lineHeight: 1.6,
+                fontStyle: 'italic',
+                mt: 2,
+                wordBreak: 'break-word',
+                whiteSpace: 'normal',
+                overflow: 'visible',
+                maxWidth: '90%',
+                opacity: 0.9,
+              }}
+            >
+              {cardData.sentenceTranslation}
+            </Typography>
+          )}
         </Box>
         
         {/* Divider Line */}
         <Box sx={{ width: '100%', height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.1)', mb: 4 }} />
 
-        {/* Türkçe Çeviri */}
+        {/* Türkçe Kelime Anlamı */}
         <Box
           sx={{
             mb: 4,
@@ -856,7 +882,7 @@ const LingvistFlashcard = () => {
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
-            minHeight: 140,
+            minHeight: 80,
           }}
         >
           <Typography
@@ -884,14 +910,14 @@ const LingvistFlashcard = () => {
 
               return parts.map((part, index) => {
                 if (index % 2 === 1) {
-                  // Bu kısım <u> tagları arasında
+                  // Bu kısım <u> tagları arasında (kelime anlamı)
                   return (
                     <Box
                       key={index}
                       component="span"
                       sx={{
                         color: 'primary.main',
-                        fontWeight: 'medium',
+                        fontWeight: 700,
                         textDecoration: 'none',
                         whiteSpace: 'nowrap',
                         display: 'inline-block',
