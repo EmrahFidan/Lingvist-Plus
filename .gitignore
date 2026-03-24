@@ -74,3 +74,5 @@ Thumbs.db
 
 # Backup files
 *.bak
+data/OLD/
+public/vite.svg
